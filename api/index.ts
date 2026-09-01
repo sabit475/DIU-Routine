@@ -156,29 +156,57 @@ app.post("/api/extract-routine", upload.single("pdf"), async (req, res) => {
       }
     };
 
-    let response;
-    const maxRetries = 3;
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        response = await ai.models.generateContent({
-          model: "gemini-3.7-flash",
-          contents,
-          config
-        });
-        break; // Success, exit retry loop
-      } catch (error: any) {
-        const status = error?.status || error?.response?.status;
-        const errorMessage = error?.message || "";
-        const is503 = status === 503 || errorMessage.includes("503") || errorMessage.includes("UNAVAILABLE") || errorMessage.includes("high demand");
-        
-        if (is503 && i < maxRetries - 1) {
-          const waitTime = Math.pow(2, i) * 1500; // 1.5s, 3s
-          console.log(`[Gemini API] High demand (503). Retrying in ${waitTime}ms... (Attempt ${i + 1} of ${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-          continue;
+    const attemptGeneration = async (modelName: string) => {
+      const maxRetries = 3;
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          console.log(`[Gemini API] Attempting extraction with model: ${modelName}, Attempt: ${i + 1}/${maxRetries}`);
+          const res = await ai!.models.generateContent({
+            model: modelName,
+            contents,
+            config
+          });
+          console.log(`[Gemini API] Success with model: ${modelName} on attempt ${i + 1}`);
+          return res;
+        } catch (error: any) {
+          const status = error?.status || error?.response?.status;
+          const errorMessage = error?.message || "";
+          console.error(`[Gemini API] Error with model ${modelName} (Attempt ${i + 1}): Status ${status} - ${errorMessage}`);
+          
+          const is503 = status === 503 || errorMessage.includes("503") || errorMessage.includes("UNAVAILABLE") || errorMessage.includes("high demand");
+          const is429 = status === 429 || errorMessage.includes("429") || errorMessage.includes("quota");
+          
+          if ((is503 || is429) && i < maxRetries - 1) {
+            const waitTime = Math.pow(2, i) * 2000 + Math.random() * 1000;
+            console.log(`[Gemini API] Retrying ${modelName} in ${Math.round(waitTime)}ms...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+          throw error;
         }
-        throw error; // Not a 503 or max retries reached, throw to outer catch
       }
+      throw new Error("Max retries exceeded");
+    };
+
+    let response;
+    let lastError: any = null;
+    const primaryModel = "gemini-2.5-flash";
+    const fallbackModel = "gemini-2.5-pro";
+
+    try {
+      response = await attemptGeneration(primaryModel);
+    } catch (error: any) {
+      console.warn(`[Gemini API] Primary model (${primaryModel}) failed completely. Switching to fallback model (${fallbackModel})...`);
+      try {
+        response = await attemptGeneration(fallbackModel);
+      } catch (fallbackError: any) {
+        console.error(`[Gemini API] Fallback model (${fallbackModel}) also failed.`);
+        lastError = fallbackError;
+      }
+    }
+
+    if (!response && lastError) {
+       throw lastError;
     }
 
     const jsonStr = response?.text?.trim() || "{}";
