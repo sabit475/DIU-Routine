@@ -73,6 +73,13 @@ export function AdminPage() {
 
       setUploadProgress(80);
 
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Non-JSON response:", text);
+        throw new Error("Server returned an invalid response. API route may not be configured correctly.");
+      }
+
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || 'Failed to extract routine');
