@@ -85,8 +85,11 @@ export function AdminPage() {
         throw new Error(errData.error || 'Failed to extract routine');
       }
 
-      const data = await response.json();
+      const responseData = await response.json();
       setUploadProgress(100);
+      
+      // Handle { success: true, data: { ... } } format
+      const data = (responseData.success && responseData.data) ? responseData.data : responseData;
       
       // Data contains the structure from Gemini
       setExtractedData({

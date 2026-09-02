@@ -101,7 +101,15 @@ app.delete("/api/pdf-documents/:id", (req, res) => {
 
 app.post("/api/extract-routine", upload.single("pdf"), async (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ error: "No PDF file uploaded" });
+    return res.status(400).json({ success: false, error: "No PDF file uploaded" });
+  }
+  
+  if (req.file.mimetype !== "application/pdf") {
+    return res.status(400).json({ success: false, error: "Uploaded file is not a valid PDF" });
+  }
+  
+  if (req.file.size > 10 * 1024 * 1024) { // 10MB limit
+    return res.status(400).json({ success: false, error: "PDF file is too large (max 10MB)" });
   }
 
   if (!ai) {
@@ -190,8 +198,8 @@ app.post("/api/extract-routine", upload.single("pdf"), async (req, res) => {
 
     let response;
     let lastError: any = null;
-    const primaryModel = "gemini-2.5-flash";
-    const fallbackModel = "gemini-2.5-pro";
+    const primaryModel = "gemini-3.7-flash";
+    const fallbackModel = "gemini-3.1-pro-preview";
 
     try {
       response = await attemptGeneration(primaryModel);
@@ -209,12 +217,28 @@ app.post("/api/extract-routine", upload.single("pdf"), async (req, res) => {
        throw lastError;
     }
 
-    const jsonStr = response?.text?.trim() || "{}";
-    const data = JSON.parse(jsonStr);
-    res.json(data);
+    let jsonStr = response?.text?.trim() || "{}";
+    if (jsonStr.startsWith("```json")) {
+      jsonStr = jsonStr.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    } else if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/^```\s*/, "").replace(/\s*```$/, "");
+    }
+    
+    let data;
+    try {
+      data = JSON.parse(jsonStr);
+      if (!data || typeof data !== 'object' || !Array.isArray(data.routine)) {
+        throw new Error("Invalid structure");
+      }
+    } catch (e) {
+      console.error("[Gemini API] Failed to parse JSON or invalid structure:", jsonStr);
+      throw new Error("Invalid JSON response from AI: The model did not return the expected class schedule format.");
+    }
+    
+    res.json({ success: true, data: data });
 
   } catch (error: any) {
-    console.error("Extraction error:", error);
+    console.error("Extraction error:", error); 
     
     // Convert raw errors to user-friendly messages
     let userMessage = "Failed to extract routine from PDF due to an unexpected error.";
@@ -229,7 +253,11 @@ app.post("/api/extract-routine", upload.single("pdf"), async (req, res) => {
       userMessage = "The uploaded PDF could not be processed. It might be corrupted, password-protected, or in an unsupported format.";
     }
     
-    res.status(500).json({ error: userMessage });
+    // If there is a specific error message from Gemini, use it instead of the generic one.
+    if (!userMessage.includes("extremely high demand") && !userMessage.includes("Too many requests") && !userMessage.includes("uploaded PDF could not be processed")) {
+      userMessage = errorMsg || userMessage;
+    }
+    res.status(500).json({ success: false, error: userMessage });
   }
 });
 
