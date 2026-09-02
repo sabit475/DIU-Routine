@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRoutine } from '../lib/RoutineContext';
-import { Moon, Sun, Monitor, Trash2, Save } from 'lucide-react';
+import { Moon, Sun, Monitor, Trash2, Save, Bell, BellOff } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export function SettingsPage() {
@@ -13,8 +13,27 @@ export function SettingsPage() {
         fontSize: 'medium',
         preferredDepartment: '',
         preferredSemester: '',
-        preferredSection: ''
+        preferredSection: '',
+        remindersEnabled: false,
+        reminderMinutes: 15
       });
+    }
+  };
+
+  const handleToggleReminders = async () => {
+    if (!settings.remindersEnabled) {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          updateSettings({ remindersEnabled: true });
+        } else {
+          alert('You need to allow notifications in your browser settings to use this feature.');
+        }
+      } else {
+        alert('Your browser does not support notifications.');
+      }
+    } else {
+      updateSettings({ remindersEnabled: false });
     }
   };
 
@@ -59,6 +78,42 @@ export function SettingsPage() {
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 rounded-lg text-sm font-semibold transition-all ${settings.darkMode ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   <Moon className="w-4 h-4" /> Dark
+                </button>
+              </div>
+            </div>
+            
+            <div className={`h-px w-full ${settings.darkMode ? 'bg-slate-800' : 'bg-slate-100'}`} />
+            
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className={`font-medium ${settings.darkMode ? 'text-white' : 'text-slate-900'}`}>Push Notifications</h3>
+                <p className={`text-sm ${settings.darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Get alerted before your next class starts.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {settings.remindersEnabled && (
+                  <select
+                    value={settings.reminderMinutes}
+                    onChange={(e) => updateSettings({ reminderMinutes: parseInt(e.target.value) })}
+                    className={`px-3 py-2 rounded-lg text-sm border focus:outline-none focus:ring-2 focus:ring-emerald-500/50 appearance-none ${settings.darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                  >
+                    <option value={5}>5 mins before</option>
+                    <option value={10}>10 mins before</option>
+                    <option value={15}>15 mins before</option>
+                    <option value={30}>30 mins before</option>
+                  </select>
+                )}
+                <button
+                  onClick={handleToggleReminders}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    settings.remindersEnabled
+                      ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                      : settings.darkMode
+                        ? 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {settings.remindersEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                  {settings.remindersEnabled ? 'Enabled' : 'Disabled'}
                 </button>
               </div>
             </div>

@@ -2,10 +2,14 @@ import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { CalendarDays, Home, Upload, LogIn, Calendar, Search, FileText, Settings, BookOpen } from 'lucide-react';
 import { useRoutine } from '../lib/RoutineContext';
+import { useClassNotifications } from '../hooks/useClassNotifications';
 
 export function Layout() {
   const location = useLocation();
   const { settings } = useRoutine();
+  
+  // Initialize notifications system
+  useClassNotifications();
 
   return (
     <div className={`flex h-screen w-full font-sans overflow-hidden ${settings.darkMode ? 'bg-[#0f172a] text-slate-200' : 'bg-slate-50 text-slate-900'}`}>

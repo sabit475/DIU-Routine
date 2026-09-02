@@ -179,7 +179,7 @@ app.post("/api/extract-routine", upload.single("pdf"), async (req, res) => {
         } catch (error: any) {
           const status = error?.status || error?.response?.status;
           const errorMessage = error?.message || "";
-          console.error(`[Gemini API] Error with model ${modelName} (Attempt ${i + 1}): Status ${status} - ${errorMessage}`);
+          console.warn(`[Gemini API] Error with model ${modelName} (Attempt ${i + 1}): Status ${status} - ${errorMessage}`);
           
           const is503 = status === 503 || errorMessage.includes("503") || errorMessage.includes("UNAVAILABLE") || errorMessage.includes("high demand");
           const is429 = status === 429 || errorMessage.includes("429") || errorMessage.includes("quota");
@@ -198,7 +198,7 @@ app.post("/api/extract-routine", upload.single("pdf"), async (req, res) => {
 
     let response;
     let lastError: any = null;
-    const primaryModel = "gemini-3.7-flash";
+    const primaryModel = "gemini-3.1-pro-preview";
     const fallbackModel = "gemini-3.1-pro-preview";
 
     try {

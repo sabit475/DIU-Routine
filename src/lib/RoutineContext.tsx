@@ -12,6 +12,8 @@ interface RoutineContextType {
     preferredDepartment: string;
     preferredSemester: string;
     preferredSection: string;
+    remindersEnabled: boolean;
+    reminderMinutes: number;
   };
   updateSettings: (newSettings: Partial<RoutineContextType['settings']>) => void;
   searchQuery: string;
@@ -32,7 +34,9 @@ export function RoutineProvider({ children }: { children: React.ReactNode }) {
       fontSize: 'medium',
       preferredDepartment: '',
       preferredSemester: '',
-      preferredSection: ''
+      preferredSection: '',
+      remindersEnabled: false,
+      reminderMinutes: 15
     };
   });
 
